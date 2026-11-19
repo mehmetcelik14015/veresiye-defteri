@@ -1,0 +1,47 @@
+name: Build unsigned iOS IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build unsigned app
+        run: |
+          set -e
+          mkdir -p build
+          xcodebuild \
+            -project ios/VeresiyeApp/VeresiyeApp.xcodeproj \
+            -target Veresiye \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_STYLE=Manual \
+            build
+
+      - name: Package IPA
+        run: |
+          set -e
+          APP="$(find build/DerivedData/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' -print -quit)"
+          test -n "$APP"
+          rm -rf package
+          mkdir -p package/Payload
+          cp -R "$APP" package/Payload/
+          cd package
+          zip -qry ../Veresiye-unsigned.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Veresiye-unsigned-IPA
+          path: Veresiye-unsigned.ipa
